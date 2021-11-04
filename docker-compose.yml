@@ -1,0 +1,47 @@
+version: "3"
+
+networks:
+  proxy:
+    external:
+      name: proxy
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: keycloak_db
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: ${MYSQL_DB_USER}
+      MYSQL_PASSWORD: ${MYSQL_DB_USER_PASSWORD}
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:15.0.2
+    container_name: keycloak_app
+    restart: "no"
+    environment:
+      DB_VENDOR: MYSQL
+      DB_ADDR: mysql
+      DB_DATABASE: keycloak
+      DB_USER: ${MYSQL_DB_USER}
+      DB_PASSWORD: ${MYSQL_DB_USER_PASSWORD}
+      KEYCLOAK_USER: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      PROXY_ADDRESS_FORWARDING: "true"
+    ports:
+      - 8086:8080
+    depends_on:
+      - mysql
+    labels:
+      - "traefik.enable=true"
+      - "traefik.protocol=http"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - traefik.http.routers.keycloak.tls.certresolver=letsencrypt
+      - traefik.http.routers.keycloak.rule=Host(`keycloak.${DOMAIN_NAME}`)
+    networks:
+      - proxy
+      - default
+volumes:
+  mysql_data:
